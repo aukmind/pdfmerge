@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <!-- Vue 3 & Naive UI -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/naive-ui"></script>
+    <script src="/naive-ui-theme.js"></script>
+</head>
+<body>
+    <div id="app" v-cloak>
+        <n-config-provider :theme-overrides="theme">
+            <n-message-provider>
+                <pdf-app></pdf-app>
+            </n-message-provider>
+        </n-config-provider>
+    </div>
+
+    <!-- Main PDF App Template -->
+    <template id="pdf-app-template">
+        <div class="app-container">
+            <header class="app-header">
+                <h1>PDF Editor</h1>
+                <p>Split and merge PDF files easily - 100% local processing</p>
+            </header>
+
+            <div class="main-layout">
+                <!-- Sidebar -->
+                <div class="sidebar">
+                    <n-card title="Documents">
+                        <n-upload
+                            multiple
+                            directory-dnd
+                            accept=".pdf"
+                            :show-file-list="false"
+                            :default-upload="false"
+                            v-model:file-list="uploadFileList"
+                            @change="handleUpload"
+                            style="margin-bottom: 16px;"
+                        >
+                            <n-upload-dragger class="upload-dragger">
+                                <n-icon size="24" :depth="3">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                </n-icon>
+                                <n-text style="font-size: 16px;">Click or drag PDF files</n-text>
+                            </n-upload-dragger>
+                        </n-upload>
+
+                        <div class="file-list" @dragover="dragOverList" @dragleave="dragLeaveList" @drop="dropFile">
+                            <template v-for="(file, index) in files" :key="file.name">
+                                <div :class="['drop-indicator', { 'drop-indicator--active': dragInsertPos === index }]"></div>
+                                <div draggable="true"
+                                    @dragstart="e => dragStart(e, index)"
+                                    @dragover="e => dragOverItem(e, index)"
+                                    @click="selectFile(file)"
+                                    :class="['file-item', { 'file-item--selected': selectedFile === file }]">
+                                    <span class="file-item__name">{{ file.name }}</span>
+                                    <div class="file-item__actions">
+                                        <n-button circle size="small" tertiary @click.stop="downloadFile(file)" title="Download">
+                                            ↓
+                                        </n-button>
+                                        <n-button circle size="small" tertiary type="error" @click.stop="removeFile(file)" title="Remove">
+                                            ×
+                                        </n-button>
+                                    </div>
+                                </div>
+                            </template>
+                            <div v-if="files.length > 0" :class="['drop-indicator', { 'drop-indicator--active': dragInsertPos === files.length }]"></div>
+                            <n-empty v-if="files.length === 0" description="No files uploaded"></n-empty>
+                        </div>
+                    </n-card>
+
+                    <n-card>
+                        <n-space vertical>
+                            <n-button type="primary" size="large" block :disabled="files.length === 0" @click="handleMerge">
+                                Merge PDFs as one
+                            </n-button>
+                            <n-button size="large" block :disabled="files.length === 0" @click="handleDownloadZip">
+                                Download all as ZIP
+                            </n-button>
+                        </n-space>
+                    </n-card>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="content-area">
+                    <n-card title="Split PDF">
+                        <div class="split-controls">
+                            <n-input v-model:value="pageRange" size="large" placeholder="Page ranges (e.g., 1-3, 5, 7-9)" class="split-controls__input"></n-input>
+                            <n-button type="primary" size="large" :disabled="!selectedFile || !pageRange" @click="handleSplit">
+                                Split PDF
+                            </n-button>
+                        </div>
+
+                        <div v-if="selectedFile">
+                            <h3 class="preview-title">{{ selectedFile.name }} - Pages</h3>
+                            <div class="preview-grid">
+                                <div v-for="(thumb, idx) in currentThumbnails" :key="idx"
+                                     :class="['page-preview', { 'page-preview--selected': isPageInSelection(idx + 1) }]"
+                                     @click="togglePageSelection(idx + 1)">
+                                    <img v-if="thumb" :src="thumb" class="page-preview__img" />
+                                    <div v-else class="page-preview__loading">
+                                        <n-spin size="small"></n-spin>
+                                    </div>
+                                    <div class="page-preview__label">
+                                        Page {{ idx + 1 }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <n-empty v-else description="Select a document to preview pages" style="margin: 40px 0;"></n-empty>
+                    </n-card>
+                </div>
+            </div>
+        </div>
+    </template>
+    
+    <script src="pdf-handler.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

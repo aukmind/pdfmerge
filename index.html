@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Editor</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- PDF-lib -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- FileSaver.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>PDF Editor</h1>
+            <p>Split and merge PDF files easily - 100% local processing, no data sent to servers</p>
+            <button id="help-button" class="help-button" aria-label="Show keyboard shortcuts">?</button>
+        </header>
+
+        <div class="main-content">
+            <!-- Documents Sidebar -->
+            <aside class="sidebar" role="complementary" aria-label="Document management">
+                <div class="documents-section">
+                    <h2>Documents</h2>
+                    <div id="file-list" class="file-list" role="list" aria-label="List of uploaded PDF files"></div>
+                </div>
+                <div class="sidebar-actions">
+                    <button id="merge-button" class="button" disabled aria-label="Merge all PDFs into one file">Merge PDFs as one</button>
+                    <button id="download-zip" class="button" disabled aria-label="Download all files as a ZIP archive">Download all as ZIP</button>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="content-area" role="main">
+                <!-- Upload Section -->
+                <section class="section" aria-labelledby="upload-title">
+                    <h2 id="upload-title">Upload PDF</h2>
+                    <div id="drop-zone" class="drop-zone" role="button" tabindex="0" aria-label="Upload PDF files" aria-describedby="drop-zone-desc">
+                        <div class="drop-zone-content">
+                            <p id="drop-zone-desc">Drag and drop PDF files here or click to select</p>
+                            <label for="file-input" class="file-input-label">Select Files</label>
+                            <input type="file" id="file-input" class="file-input" accept=".pdf" multiple aria-label="Select PDF files to upload">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Mobile Documents Section -->
+                <section class="section mobile-documents-section" aria-labelledby="mobile-documents-title">
+                    <h2 id="mobile-documents-title">Documents</h2>
+                    <div id="mobile-file-list" class="file-list" role="list" aria-label="List of uploaded PDF files"></div>
+                    <div class="mobile-document-actions">
+                        <button id="mobile-merge-button" class="button" disabled aria-label="Merge all PDFs into one file">Merge PDFs as one</button>
+                        <button id="mobile-download-zip" class="button" disabled aria-label="Download all files as a ZIP archive">Download all as ZIP</button>
+                    </div>
+                </section>
+
+                <!-- Split Section -->
+                <section class="section" aria-labelledby="split-title">
+                    <h2 id="split-title">Split PDF</h2>
+                    <div class="split-options">
+                        <div class="page-range-input">
+                            <label for="page-range" class="visually-hidden">Page ranges to split</label>
+                            <input type="text" id="page-range" placeholder="Enter page ranges (e.g., 1-3, 5, 7-9)" aria-label="Enter page ranges to split">
+                        </div>
+                        <button id="split-button" class="button" disabled aria-label="Split selected PDF file">Split PDF</button>
+                    </div>
+                    <div id="preview-container" class="preview-container" role="list" aria-label="PDF page previews"></div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Help Overlay -->
+    <div id="help-overlay" class="help-overlay desktop-only" role="dialog" aria-labelledby="help-title" aria-hidden="true">
+        <div class="help-content">
+            <h2 id="help-title">Keyboard Shortcuts</h2>
+            <div class="shortcuts-list">
+                <h3>Global Shortcuts</h3>
+                <div class="shortcut-item">
+                    <kbd>?</kbd>
+                    <span>Show/hide this help</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>ESC</kbd>
+                    <span>Close this help</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>N</kbd>
+                    <span>Add a new file</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>M</kbd>
+                    <span>Merge all PDFs</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>S</kbd>
+                    <span>Split selected PDF</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>D</kbd>
+                    <span>Download (context-aware)</span>
+                </div>
+
+                <h3>Document Shortcuts</h3>
+                <div class="shortcut-item">
+                    <kbd>F</kbd>
+                    <span>Focus on file list</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>P</kbd>
+                    <span>Focus on page range input</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>R</kbd>
+                    <span>Rename selected file</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>DEL</kbd>
+                    <span>Remove selected file</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>↑</kbd>
+                    <span>Select previous file</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>↓</kbd>
+                    <span>Select next file</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>ENTER</kbd>
+                    <span>View pages of selected file</span>
+                </div>
+
+                <h3>Page Navigation</h3>
+                <div class="shortcut-item">
+                    <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>
+                    <span>Navigate page grid</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>SPACE</kbd>
+                    <span>Select focused page</span>
+                </div>
+                <div class="shortcut-item">
+                    <kbd>BACKSPACE</kbd>
+                    <span>Return to document selection</span>
+                </div>
+            </div>
+            <button id="close-help" class="button" aria-label="Close help">Close</button>
+        </div>
+    </div>
+
+    <!-- Application Scripts -->
+    <script src="pdf-handler.js"></script>
+    <script src="app.js"></script>
+</body>
+</html> 

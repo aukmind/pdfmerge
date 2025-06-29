@@ -40,7 +40,13 @@ function initializeEventListeners() {
     elements.dropZone.addEventListener('dragover', handleDragOver);
     elements.dropZone.addEventListener('dragleave', handleDragLeave);
     elements.dropZone.addEventListener('drop', handleDrop);
-    elements.dropZone.addEventListener('click', () => elements.fileInput.click());
+    elements.dropZone.addEventListener('click', (e) => {
+        // Don't trigger file input if clicking on the label (which already triggers it)
+        if (e.target.tagName === 'LABEL' || e.target.closest('label')) {
+            return;
+        }
+        elements.fileInput.click();
+    });
     elements.dropZone.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();

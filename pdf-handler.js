@@ -174,12 +174,13 @@ class PDFHandler {
         }
     }
 
-    async mergePDFs() {
+    async mergePDFs(customOrder = null) {
         try {
             const mergedPdf = await PDFLib.PDFDocument.create();
             
+            const orderToUse = customOrder || this.fileOrder;
             // Use fileOrder to maintain the correct order
-            for (const fileName of this.fileOrder) {
+            for (const fileName of orderToUse) {
                 const item = this.items.get(fileName);
                 if (!item?.manipulator) {
                     throw new Error(`PDF not found: ${fileName}`);

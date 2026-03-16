@@ -39,7 +39,7 @@ function initializeEventListeners() {
     // Drop zone events
     elements.dropZone.addEventListener('dragover', handleDragOver);
     elements.dropZone.addEventListener('dragleave', handleDragLeave);
-    elements.dropZone.addEventListener('drop', handleDrop);
+    elements.dropZone.addEventListener('drop', handleFileDrop);
     elements.dropZone.addEventListener('click', (e) => {
         // Don't trigger file input if clicking on the label (which already triggers it)
         if (e.target.tagName === 'LABEL' || e.target.closest('label')) {
@@ -427,7 +427,7 @@ function handleDragLeave() {
     elements.dropZone.classList.remove('drag-over');
 }
 
-async function handleDrop(e) {
+async function handleFileDrop(e) {
     e.preventDefault();
     elements.dropZone.classList.remove('drag-over');
     const files = Array.from(e.dataTransfer.files).filter(isPDFFile);
@@ -532,7 +532,7 @@ function createFileItem(file) {
     // Add drag and drop event listeners
     fileItem.addEventListener('dragstart', handleDragStart);
     fileItem.addEventListener('dragover', handleDragOver);
-    fileItem.addEventListener('drop', handleDrop);
+    fileItem.addEventListener('drop', handleListItemDrop);
     fileItem.addEventListener('dragend', handleDragEnd);
     
     // Add keyboard navigation
@@ -754,7 +754,7 @@ async function handleMerge() {
             throw new Error('File order mismatch');
         }
 
-        const mergedFile = await pdfHandler.mergePDFs();
+        const mergedFile = await pdfHandler.mergePDFs(orderedFiles.map(f => f.name));
         saveAs(mergedFile, 'merged.pdf');
         showNotification('PDFs merged and downloaded successfully');
     } catch (error) {
@@ -1118,11 +1118,13 @@ function handleDragOver(e) {
     }
 }
 
-function handleDrop(e) {
+function handleListItemDrop(e) {
     e.preventDefault();
     const fileName = e.dataTransfer.getData('text/plain');
+    if (!fileName) return;
+
     const items = [...elements.fileList.querySelectorAll('.file-item')];
-    const newIndex = items.findIndex(item => item === e.target.closest('.file-item'));
+    const newIndex = items.findIndex(item => item.getAttribute('data-filename') === fileName);
     
     if (newIndex !== -1) {
         pdfHandler.moveFile(fileName, newIndex);

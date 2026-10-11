@@ -22,7 +22,7 @@ You build **one document**. Add PDFs with the **+** button (bottom left) or by d
 
 ## Running locally
 
-ES modules and the shared theme at `/naive-ui-theme.js` need an HTTP server rooted at the site, not `file://`:
+ES modules, the shared theme at `/naive-ui-theme.js` and the modules in `/shared/` (icons, options, fonts, zoom — shared with `/image/`) need an HTTP server rooted at the site, not `file://`:
 
 ```
 cd aukmind.github.io && python3 -m http.server
@@ -38,6 +38,7 @@ Unit tests for the pure modules (page ranges, rotation geometry, Markdown extrac
 - `js/tools.js` — tool registry (labels, hints, icons)
 - `js/pdf/` — PDF logic: `handler.js` (loading, rendering, text), `ops.js` (pdf-lib operations), `geometry.js` (rotated-page coordinates), `ranges.js`, `markdown.js`, `images.js`, `qpdf.js`
 - `js/components/` — one file per tool plus `shared.js` (page grid, selection bar, page stage)
+- `#import` opens files handed over by another app on the site through `/shared/handoff.js` (the image toolbox's "Open in PDF Editor")
 
 ## Libraries
 

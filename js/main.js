@@ -10,6 +10,9 @@ import { CompareTool } from './components/compare.js';
 import { ConvertTool } from './components/convert.js';
 import { SecurityTool } from './components/security.js';
 import { PendingFiles } from './components/pending.js';
+import { takeHandoff } from '/shared/handoff.js';
+import { useFileDrop } from '/shared/dom.js';
+import { useNaiveTheme, useNaiveOverrides } from '/shared/theme.js';
 
 const { createApp, defineComponent, provide, inject, computed, ref, watch, nextTick, onMounted, h } = Vue;
 const naive = window.naive;
@@ -78,7 +81,7 @@ const DocBar = defineComponent({
             <n-input v-if="editing" v-model:value="draft" size="small" class="docbar__rename"
                 @keyup.enter="finishRename" @keyup.esc="editing = false" @blur="finishRename"/>
             <button v-else type="button" class="docbar__name" :title="doc.name + ' — click to rename'" @click="startRename">{{ doc.name }}</button>
-            <span class="docbar__meta">{{ doc.pageCount }} {{ doc.pageCount === 1 ? 'page' : 'pages' }} · {{ formatSize(doc.size) }}</span>
+            <span class="docbar__meta">{{ doc.pageCount }} {{ doc.pageCount === 1 ? 'page' : 'pages' }}<span class="docbar__size"> · {{ formatSize(doc.size) }}</span></span>
             <span v-if="doc.edits" class="docbar__dot" title="Edited"></span>
             <div class="docbar__actions">
                 <n-button v-if="doc.edits" size="small" quaternary :disabled="!!store.state.busy" @click="store.undoEdit(doc.name)" title="Undo the last change">
@@ -86,7 +89,7 @@ const DocBar = defineComponent({
                 </n-button>
                 <n-button-group size="small" class="docbar__download">
                     <n-button type="primary" secondary @click="store.download(doc.name)">
-                        <template #icon><icon :d="ICONS.download"/></template>Download
+                        <template #icon><icon :d="ICONS.download"/></template><span class="docbar__download-label">Download</span>
                     </n-button>
                     <n-popover trigger="click" placement="bottom-end" :show="menuOpen" @update:show="v => menuOpen = v" raw :show-arrow="false">
                         <template #trigger>
@@ -270,19 +273,7 @@ const AppShell = defineComponent({
         watch(viewKey, () => { store.state.viewer.show = false; });
         const ToolView = () => TOOL_VIEWS[tool.value.id]();
 
-        const fileDrag = ref(false);
-        let depth = 0;
-        const isFileDrag = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
-        useWindowListener('dragenter', (e) => { if (isFileDrag(e)) { depth++; fileDrag.value = true; } });
-        useWindowListener('dragover', (e) => { if (isFileDrag(e)) e.preventDefault(); });
-        useWindowListener('dragleave', (e) => { if (isFileDrag(e) && --depth <= 0) { depth = 0; fileDrag.value = false; } });
-        useWindowListener('drop', (e) => {
-            if (!isFileDrag(e)) return;
-            e.preventDefault();
-            depth = 0;
-            fileDrag.value = false;
-            store.loadFiles([...e.dataTransfer.files]);
-        });
+        const fileDrag = useFileDrop(files => store.loadFiles(files));
 
         const empty = computed(() => !store.state.doc && !store.pending.length);
         // With nothing loaded, only the image tools have something to show; the rest get the landing page.
@@ -290,10 +281,15 @@ const AppShell = defineComponent({
 
         const addFiles = async () => store.loadFiles(await pickFiles({ accept: ACCEPT, multiple: true }));
 
+        if (location.hash === '#import') {
+            history.replaceState(null, '', '#organize');
+            takeHandoff().then((files) => files.length && store.loadFiles(files)).catch(err => console.error('Hand-off failed', err));
+        }
+
         return { store, tool, ready, viewKey, ToolView, fileDrag, empty, landing, addFiles, ICONS };
     },
     template: `
-        <div>
+        <div :class="{ 'app--landing': landing }">
             <header class="topbar">
                 <div class="topbar__brand">
                     <span class="topbar__logo"><icon d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M9 15h6M9 11h2" :size="18"/></span>
@@ -358,10 +354,11 @@ const AppShell = defineComponent({
 const app = createApp({
     components: { AppShell },
     setup() {
-        return { theme: window.aukmindTheme || null };
+        const naiveTheme = useNaiveTheme();
+        return { naiveTheme, naiveOverrides: useNaiveOverrides(naiveTheme) };
     },
     template: `
-        <n-config-provider :theme-overrides="theme">
+        <n-config-provider :theme="naiveTheme" :theme-overrides="naiveOverrides">
             <n-message-provider placement="top">
                 <app-shell/>
             </n-message-provider>

@@ -1,47 +1,11 @@
 import { pagesToRangeString, safePagesFromRanges } from '../pdf/ranges.js';
+import { Icon, ICONS } from '/shared/icons.js';
+import { usePinchZoom } from '/shared/zoom.js';
+import { useWindowListener, useKeydown, pickFiles, useObjectUrls, useSortable, clamp01, pointIn, boxStyle, resizeRect, startDrag } from '/shared/dom.js';
 
 const { defineComponent, inject, provide, computed, ref, shallowRef, watch, nextTick, onMounted, onBeforeUnmount } = Vue;
 
-export const ICONS = {
-    rotateLeft: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
-    rotateRight: 'M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5',
-    trash: 'M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15',
-    zoom: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-4.3-4.3M11 8v6M8 11h6',
-    undo: 'M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3',
-    download: 'M12 3v12M7 10l5 5 5-5M5 21h14',
-    close: 'M18 6L6 18M6 6l12 12',
-    check: 'M5 12l5 5L20 7',
-    left: 'M15 18l-6-6 6-6',
-    right: 'M9 18l6-6-6-6',
-    lock: 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',
-    alert: 'M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
-    upload: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12',
-    camera: 'M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
-    image: 'M4 5h16v14H4zM4 15l4-4 4 4 3-3 5 5M15 9h.01',
-    text: 'M4 7V4h16v3M9 20h6M12 4v16',
-    square: 'M4 4h16v16H4z',
-    circle: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z',
-    line: 'M5 19L19 5',
-    highlight: 'M9 11l-6 6v3h6l6-6M14 4l6 6-8 8-6-6z',
-    eraser: 'M20 20H8l-4-4 10-10 7 7-7 7M7 11l6 6',
-    pointer: 'M4 3l7 17 2.5-7.5L21 10z',
-    signature: 'M3 17c3-4 5-9 7-9s-1 9 2 9 3-4 5-4 2 3 4 3M3 21h18',
-    calendar: 'M4 5h16v16H4zM4 10h16M9 3v4M15 3v4',
-    copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
-    grid: 'M3 3h7v9H3zM14 3h7v9h-7zM3 15h7v6H3zM14 15h7v6h-7z',
-    page: 'M5 3h14v18H5z',
-    plus: 'M12 5v14M5 12h14',
-    minus: 'M5 12h14',
-    down: 'M6 9l6 6 6-6',
-    settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
-    pencil: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
-};
-
-export const Icon = defineComponent({
-    props: { d: { type: String, required: true }, size: { type: Number, default: 16 } },
-    template: `<svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="icon-svg"><path :d="d"/></svg>`,
-});
+export { Icon, ICONS, useWindowListener, useKeydown, pickFiles, useObjectUrls, useSortable, clamp01, pointIn, boxStyle, resizeRect, startDrag };
 
 export function pageItems(name, count) {
     return Array.from({ length: count }, (_, i) => ({ key: `${name}#${i + 1}`, name, page: i + 1, rotation: 0 }));
@@ -116,9 +80,9 @@ export const SelectionBar = defineComponent({
                 <n-input :value="text" @update:value="onInput" :placeholder="placeholder" clearable size="small" class="selbar__input"/>
                 <n-button-group size="small">
                     <n-button @click="all">All</n-button>
-                    <n-button @click="parity(true)">Odd</n-button>
-                    <n-button @click="parity(false)">Even</n-button>
-                    <n-button @click="invert">Invert</n-button>
+                    <n-button @click="parity(true)" class="selbar__extra">Odd</n-button>
+                    <n-button @click="parity(false)" class="selbar__extra">Even</n-button>
+                    <n-button @click="invert" class="selbar__extra">Invert</n-button>
                     <n-button @click="none" :disabled="!selected.length">None</n-button>
                 </n-button-group>
                 <span class="selbar__count">{{ selected.length ? selected.length + ' of ' + items.length + ' selected' : 'Click pages to select · Shift-click for a range' }}</span>
@@ -126,33 +90,6 @@ export const SelectionBar = defineComponent({
             <zoom-slider/>
         </div>`,
 });
-
-// Sortable moves DOM nodes itself; put the node back and report the move so Vue stays in charge.
-export function useSortable(el, onMove, options = {}) {
-    let sortable = null;
-    onMounted(() => {
-        sortable = Sortable.create(el.value, {
-            animation: 150,
-            delay: 180,
-            delayOnTouchOnly: true,
-            ghostClass: 'page-card--ghost',
-            filter: '.page-card__tool',
-            preventOnFilter: false,
-            draggable: '.page-card',
-            ...options,
-            onEnd: ({ item, from, oldIndex, newIndex }) => {
-                if (oldIndex === newIndex) return;
-                const cards = [...from.children].filter(n => n !== item && n.matches('.page-card'));
-                item.remove();
-                if (cards[oldIndex]) from.insertBefore(item, cards[oldIndex]);
-                else if (cards.length) cards[cards.length - 1].after(item);
-                else from.prepend(item);
-                onMove(oldIndex, newIndex);
-            },
-        });
-    });
-    onBeforeUnmount(() => sortable?.destroy());
-}
 
 // One card per page so a thumbnail arriving only re-renders its own card.
 const PageCard = defineComponent({
@@ -271,38 +208,6 @@ export const PageGrid = defineComponent({
         </div>`,
 });
 
-// Holds blob URLs (a string or an object of them) and revokes whatever it replaces or outlives.
-export function useObjectUrls() {
-    const value = shallowRef(null);
-    let token = 0;
-    const urlsOf = (v) => (!v ? [] : typeof v === 'string' ? [v] : Object.values(v).filter(u => typeof u === 'string'));
-    const revoke = (v) => urlsOf(v).forEach(u => URL.revokeObjectURL(u));
-
-    const clear = () => {
-        token++;
-        revoke(value.value);
-        value.value = null;
-    };
-    // Shows produce()'s result unless a newer load started meanwhile; keep=true leaves the old one up until then.
-    const load = async (produce, { keep = false } = {}) => {
-        const mine = ++token;
-        if (!keep) {
-            revoke(value.value);
-            value.value = null;
-        }
-        const next = await produce();
-        if (mine !== token) {
-            revoke(next);
-            return false;
-        }
-        revoke(value.value);
-        value.value = next;
-        return true;
-    };
-    onBeforeUnmount(clear);
-    return { value, load, clear };
-}
-
 // A page rendered as large as fits; the default slot is an overlay in the same box.
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 6;
@@ -382,25 +287,12 @@ export const PageStage = defineComponent({
         };
         const step = (factor) => setZoom(Math.round(zoom.value * factor * 4) / 4);
 
-        // Trackpad pinches arrive as ctrl + wheel; take them so the browser doesn't zoom (and blur) the whole page.
-        const onWheel = (e) => {
-            if (!e.ctrlKey && !e.metaKey) return;
-            e.preventDefault();
-            setZoom(zoom.value * Math.exp(-e.deltaY * 0.01), e);
-        };
-        // Safari reports pinches as gesture events instead.
-        let gestureBase = 1;
-        const onGestureStart = (e) => { e.preventDefault(); gestureBase = zoom.value; };
-        const onGestureChange = (e) => { e.preventDefault(); setZoom(gestureBase * e.scale, e); };
+        usePinchZoom(scroller, { get: () => zoom.value, set: setZoom });
 
         let resizeObserver;
         onMounted(() => {
             resizeObserver = new ResizeObserver(() => { measure(); render(); });
             resizeObserver.observe(wrap.value);
-            const sc = scroller.value;
-            sc.addEventListener('wheel', onWheel, { passive: false });
-            sc.addEventListener('gesturestart', onGestureStart);
-            sc.addEventListener('gesturechange', onGestureChange);
             measure();
             render();
         });
@@ -464,20 +356,6 @@ export const PageNav = defineComponent({
         </div>`,
 });
 
-export function useWindowListener(type, handler) {
-    onMounted(() => window.addEventListener(type, handler));
-    onBeforeUnmount(() => window.removeEventListener(type, handler));
-}
-
-// Keyboard shortcuts that stay out of the way while the user is typing.
-export function useKeydown(handler) {
-    useWindowListener('keydown', (e) => {
-        const t = e.target;
-        if (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
-        handler(e);
-    });
-}
-
 const NO_FILES = Object.freeze([]);
 
 // Bind :file-list="upload.list" so n-upload keeps no history; it reports each picked file separately, so batch them.
@@ -491,58 +369,6 @@ export function useUpload(onFiles) {
     return { list: NO_FILES, onChange };
 }
 
-export function pickFiles({ accept = '', capture = null, multiple = false } = {}) {
-    return new Promise((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = accept;
-        input.multiple = multiple;
-        if (capture) input.capture = capture;
-        input.onchange = () => resolve([...input.files]);
-        input.oncancel = () => resolve([]);
-        input.click();
-    });
-}
-
 export function readFileBytes(file) {
     return file.arrayBuffer().then(b => new Uint8Array(b));
-}
-
-export const clamp01 = (v) => Math.min(1, Math.max(0, v));
-
-export function pointIn(event, el) {
-    const r = el.getBoundingClientRect();
-    return { x: clamp01((event.clientX - r.left) / r.width), y: clamp01((event.clientY - r.top) / r.height) };
-}
-
-export function boxStyle(rect) {
-    return { left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.w * 100}%`, height: `${rect.h * 100}%` };
-}
-
-// Drags one edge or corner (handle like 'nw', 'e') of a normalized rect, keeping a minimum size.
-export function resizeRect(orig, handle, dx, dy, minW, minH = minW) {
-    let left = orig.x, top = orig.y, right = orig.x + orig.w, bottom = orig.y + orig.h;
-    if (handle.includes('w')) left = Math.min(clamp01(left + dx), right - minW);
-    if (handle.includes('e')) right = Math.max(clamp01(right + dx), left + minW);
-    if (handle.includes('n')) top = Math.min(clamp01(top + dy), bottom - minH);
-    if (handle.includes('s')) bottom = Math.max(clamp01(bottom + dy), top + minH);
-    return { x: left, y: top, w: right - left, h: bottom - top };
-}
-
-// Pointer drags in normalized coordinates of `el`. onMove(point, start) runs until release.
-export function startDrag(event, el, onMove, onEnd = null) {
-    event.preventDefault();
-    event.stopPropagation();
-    const start = pointIn(event, el);
-    const move = (e) => onMove(pointIn(e, el), start, e);
-    const up = (e) => {
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-        window.removeEventListener('pointercancel', up);
-        onEnd?.(pointIn(e, el), start, e);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
-    return start;
 }

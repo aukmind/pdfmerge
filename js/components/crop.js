@@ -85,7 +85,10 @@ export const CropTool = defineComponent({
 
         const go = (p) => { if (p >= 1 && p <= count) page.value = p; };
         useKeydown((e) => {
-            if (e.key === 'Enter' && !store.state.busy) cropThis();
+            if (e.key === 'Enter' && !store.state.busy) {
+                e.preventDefault();
+                cropThis();
+            }
             else if (e.key === 'ArrowLeft') go(page.value - 1);
             else if (e.key === 'ArrowRight') go(page.value + 1);
         });
